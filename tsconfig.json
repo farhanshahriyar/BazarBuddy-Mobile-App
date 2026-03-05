@@ -3,7 +3,7 @@
   "compilerOptions": {
     "strict": true,
     "skipLibCheck": true,
-    "module": "es2022",
+    "module": "esnext",
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {

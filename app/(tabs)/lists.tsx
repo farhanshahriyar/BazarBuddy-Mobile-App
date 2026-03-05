@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, FlatList, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Plus, Search, Calendar, ChevronRight, ShoppingCart } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
 
@@ -38,9 +38,11 @@ export default function ListsScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchLists();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchLists();
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -126,8 +128,8 @@ export default function ListsScreen() {
                   <View className="flex-1">
                     <View className="flex-row justify-between items-center mb-1">
                       <Text className="text-foreground font-bold text-lg">{item.title}</Text>
-                      <Text className={`text-xs px-2 py-1 rounded-full font-bold ${getStatusColor(item.status)}`}>
-                        {item.status.toUpperCase()}
+                      <Text className={`text-xs px-2 py-1 rounded-full font-bold ${getStatusColor(item.status || 'active')}`}>
+                        {(item.status || 'active').toUpperCase()}
                       </Text>
                     </View>
                     <View className="flex-row items-center gap-4">

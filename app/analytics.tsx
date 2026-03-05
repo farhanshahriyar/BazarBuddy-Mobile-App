@@ -1,9 +1,12 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Dimensions, ActivityIndicator } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { ChevronLeft, TrendingUp, DollarSign, Calendar, ArrowRight } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { supabase } from '../lib/supabase';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { Platform } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
@@ -27,9 +30,19 @@ const AnalyticsDashboard = () => {
       if (error) throw error;
 
       const total = items?.reduce((acc, item) => acc + Number(item.estimated_price || 0), 0) || 0;
+
+      // Calculate weekly average based on actual data range
+      let weeklyAvg = 0;
+      if (items && items.length > 0) {
+        const dates = items.map(item => new Date(item.created_at).getTime());
+        const earliest = Math.min(...dates);
+        const latest = Date.now();
+        const weeks = Math.max(1, Math.ceil((latest - earliest) / (7 * 24 * 60 * 60 * 1000)));
+        weeklyAvg = total / weeks;
+      }
       setStats({
         total,
-        weeklyAvg: total / 4, // Simple mock for monthly average
+        weeklyAvg: Math.round(weeklyAvg),
       });
 
       // Simple mock for chart data based on real total
@@ -50,9 +63,11 @@ const AnalyticsDashboard = () => {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+    }, [])
+  );
 
   if (loading) {
     return (
@@ -126,7 +141,34 @@ const AnalyticsDashboard = () => {
             </View>
           ))}
 
-          <TouchableOpacity className="mt-6 mb-12 bg-primary/10 border border-primary/30 p-5 rounded-3xl flex-row items-center justify-between">
+          <TouchableOpacity 
+            onPress={async () => {
+              const html = `<html><body style="font-family:sans-serif;padding:40px;color:#333">
+                <h1 style="color:#FF6B00">BazarBuddy Analytics Report</h1>
+                <p>Generated: ${new Date().toLocaleDateString()}</p>
+                <h2>Summary</h2>
+                <p><strong>Total Spent:</strong> ৳${stats.total.toLocaleString()}</p>
+                <p><strong>Weekly Average:</strong> ৳${stats.weeklyAvg.toLocaleString()}</p>
+                <h2>Categories</h2>
+                <ul>
+                  <li>Grocery: ৳${(stats.total * 0.65).toLocaleString()} (65%)</li>
+                  <li>Stationary: ৳${(stats.total * 0.15).toLocaleString()} (15%)</li>
+                  <li>Personal Care: ৳${(stats.total * 0.12).toLocaleString()} (12%)</li>
+                  <li>Others: ৳${(stats.total * 0.08).toLocaleString()} (8%)</li>
+                </ul>
+                <p style="color:#FF6B00;font-style:italic;text-align:center;margin-top:40px">Generated with BazarBuddy</p>
+              </body></html>`;
+              try {
+                if (Platform.OS === 'web') {
+                  await Print.printAsync({ html });
+                } else {
+                  const { uri } = await Print.printToFileAsync({ html });
+                  await Sharing.shareAsync(uri, { UTI: '.pdf', mimeType: 'application/pdf' });
+                }
+              } catch (e) { console.error('PDF error:', e); }
+            }}
+            className="mt-6 mb-12 bg-primary/10 border border-primary/30 p-5 rounded-3xl flex-row items-center justify-between"
+          >
             <View>
               <Text className="text-primary font-bold text-lg mb-1">Generate Full Report</Text>
               <Text className="text-muted-foreground text-xs">Monthly detailed PDF with insights</Text>

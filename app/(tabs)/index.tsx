@@ -1,10 +1,11 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState, useCallback } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, ShoppingBag, Calendar, ArrowRight } from 'lucide-react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
+import { getDynamicProTipWithGemini } from '../../lib/gemini';
 
 export default function DashboardScreen() {
   const router = useRouter();
@@ -13,6 +14,7 @@ export default function DashboardScreen() {
     const [refreshing, setRefreshing] = useState(false);
     const [stats, setStats] = useState({ total: 0, count: 0 });
     const [userName, setUserName] = useState('BazarBuddy');
+    const [proTip, setProTip] = useState('Prices for essentials fluctuate daily in local markets. Use AI suggestions to plan your budget effectively!');
   
       const fetchData = async () => {
         try {
@@ -36,13 +38,14 @@ export default function DashboardScreen() {
       if (error) throw error;
       setRecentLists(lists || []);
 
-      // Calculate simple stats
-      let totalSpent = 0;
-      lists?.forEach(list => {
-        list.grocery_items?.forEach((item: any) => {
-          totalSpent += Number(item.estimated_price || 0);
-        });
-      });
+      // Separate query for total stats (not limited to 3)
+      const { data: allItems, error: statsError } = await supabase
+        .from('grocery_items')
+        .select('estimated_price, grocery_lists!inner(user_id)')
+        .eq('grocery_lists.user_id', user.id);
+
+      if (statsError) throw statsError;
+      const totalSpent = allItems?.reduce((acc, item) => acc + Number(item.estimated_price || 0), 0) || 0;
       setStats({ total: totalSpent, count: lists?.length || 0 });
     } catch (error) {
       console.error('Error fetching dashboard data:', error);
@@ -52,9 +55,18 @@ export default function DashboardScreen() {
     }
   };
 
-  useEffect(() => {
-    fetchData();
-  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      fetchData();
+      
+      // Fetch dynamic pro tip once when screen focused (if not already custom)
+      if (proTip.includes('fluctuate daily')) {
+        getDynamicProTipWithGemini().then(tip => {
+          if (tip) setProTip(tip);
+        });
+      }
+    }, [])
+  );
 
   const onRefresh = () => {
     setRefreshing(true);
@@ -135,7 +147,7 @@ export default function DashboardScreen() {
                     <View>
                       <Text className="text-foreground font-bold">{list.title}</Text>
                       <Text className="text-muted-foreground text-xs">
-                        {new Date(list.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {list.grocery_items?.length || 0} items
+                        {new Date(list.created_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })} • {list.grocery_items?.length || 0} items
                       </Text>
                     </View>
                   </View>
@@ -148,7 +160,7 @@ export default function DashboardScreen() {
           {/* AI Insight */}
           <View className="bg-primary/10 p-4 rounded-2xl border border-primary/20 border-dashed mb-10">
             <Text className="text-primary font-bold mb-1">💡 BazarBuddy Suggestion</Text>
-            <Text className="text-foreground/80 text-sm">Prices for "Onion" and "Rice" are expected to rise next week in local markets. Consider buying now!</Text>
+            <Text className="text-foreground/80 text-sm">{proTip}</Text>
           </View>
         </ScrollView>
       </ScreenWrapper>

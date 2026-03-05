@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, FlatList, ActivityIndicator, Alert, Platform, Share } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Plus, Trash2, CheckCircle2, Circle, Edit3, Share2, FileText } from 'lucide-react-native';
@@ -70,6 +70,29 @@ export default function ListDetailScreen() {
     } catch (error) {
       console.error('Error deleting item:', error);
     }
+  };
+
+  const shareList = async () => {
+    const itemsList = items.map(item => `${item.is_completed ? '✅' : '⬜'} ${item.name} - ${item.quantity} ${item.unit} (৳${item.estimated_price})`).join('\n');
+    const message = `📋 ${list?.title || 'Grocery List'}\n\n${itemsList || 'No items yet'}\n\nTotal: ৳${totalSpent.toLocaleString()}\n\nShared via BazarBuddy`;
+    
+    try {
+      if (Platform.OS === 'web') {
+        await navigator.clipboard.writeText(message);
+        alert('List copied to clipboard!');
+      } else {
+        await Share.share({ message });
+      }
+    } catch (error) {
+      console.error('Error sharing list:', error);
+    }
+  };
+
+  const confirmDeleteItem = (itemId: string, itemName: string) => {
+    Alert.alert('Delete Item', `Remove "${itemName}" from this list?`, [
+      { text: 'Cancel', style: 'cancel' },
+      { text: 'Delete', style: 'destructive', onPress: () => deleteItem(itemId) },
+    ]);
   };
 
   const totalSpent = items.reduce((acc, item) => acc + Number(item.estimated_price || 0), 0);
@@ -224,7 +247,7 @@ export default function ListDetailScreen() {
           </TouchableOpacity>
           <Text className="text-foreground text-xl font-bold">{list?.title || 'List Detail'}</Text>
           <View className="flex-row gap-2">
-            <TouchableOpacity className="bg-secondary p-2 rounded-full">
+            <TouchableOpacity onPress={shareList} className="bg-secondary p-2 rounded-full">
               <Share2 color="#FF6B00" size={20} />
             </TouchableOpacity>
             <TouchableOpacity 
@@ -274,10 +297,13 @@ export default function ListDetailScreen() {
                 </View>
 
                 <View className="flex-row gap-2">
-                  <TouchableOpacity className="bg-secondary/50 p-2 rounded-lg">
+                  <TouchableOpacity 
+                    onPress={() => Alert.alert('Edit Item', `Editing "${item.name}" is coming soon!`)}
+                    className="bg-secondary/50 p-2 rounded-lg"
+                  >
                     <Edit3 color="#FF6B00" size={16} />
                   </TouchableOpacity>
-                  <TouchableOpacity onPress={() => deleteItem(item.id)} className="bg-red-500/10 p-2 rounded-lg">
+                  <TouchableOpacity onPress={() => confirmDeleteItem(item.id, item.name)} className="bg-red-500/10 p-2 rounded-lg">
                     <Trash2 color="#ef4444" size={16} />
                   </TouchableOpacity>
                 </View>

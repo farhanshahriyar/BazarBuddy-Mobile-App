@@ -5,10 +5,13 @@ import { User, Bell, Globe, Shield, Moon, LogOut, ChevronRight, MessageSquare, H
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
+import { useColorScheme } from 'nativewind';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const { colorScheme, setColorScheme } = useColorScheme();
+  const [isDarkMode, setIsDarkMode] = useState(colorScheme === 'dark');
   const [language, setLanguage] = useState<'en' | 'bn'>('en');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
@@ -16,6 +19,23 @@ export default function SettingsScreen() {
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const router = useRouter();
+
+  // Load persisted settings
+  useEffect(() => {
+    const loadSettings = async () => {
+      try {
+        const [savedNotif, savedLang] = await Promise.all([
+          AsyncStorage.getItem('setting_notifications'),
+          AsyncStorage.getItem('setting_language'),
+        ]);
+        if (savedNotif !== null) setIsNotificationsEnabled(savedNotif === 'true');
+        if (savedLang) setLanguage(savedLang as 'en' | 'bn');
+      } catch (e) {
+        console.error('Error loading settings:', e);
+      }
+    };
+    loadSettings();
+  }, []);
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data: { user } }) => {
@@ -47,7 +67,20 @@ export default function SettingsScreen() {
   };
 
   const toggleLanguage = () => {
-    setLanguage(prev => prev === 'en' ? 'bn' : 'en');
+    const newLang = language === 'en' ? 'bn' : 'en';
+    setLanguage(newLang);
+    AsyncStorage.setItem('setting_language', newLang);
+    Alert.alert('Language', newLang === 'bn' ? 'বাংলা ভাষা সাপোর্ট শীঘ্রই আসছে!' : 'Language set to English.');
+  };
+
+  const toggleNotifications = (value: boolean) => {
+    setIsNotificationsEnabled(value);
+    AsyncStorage.setItem('setting_notifications', String(value));
+  };
+
+  const toggleDarkMode = (value: boolean) => {
+    setIsDarkMode(value);
+    setColorScheme(value ? 'dark' : 'light');
   };
 
   const handleFeedback = () => {
@@ -144,7 +177,7 @@ export default function SettingsScreen() {
                 </View>
                 <Switch 
                   value={isNotificationsEnabled} 
-                  onValueChange={setIsNotificationsEnabled}
+                  onValueChange={toggleNotifications}
                   trackColor={{ false: '#222', true: '#FF6B00' }}
                   thumbColor="#fff"
                 />
@@ -157,7 +190,7 @@ export default function SettingsScreen() {
                 </View>
                 <Switch 
                   value={isDarkMode} 
-                  onValueChange={setIsDarkMode}
+                  onValueChange={toggleDarkMode}
                   trackColor={{ false: '#222', true: '#FF6B00' }}
                   thumbColor="#fff"
                 />
@@ -190,7 +223,10 @@ export default function SettingsScreen() {
           <View className="mb-8">
             <Text className="text-muted-foreground text-xs font-bold uppercase mb-4 px-2">Security & Privacy</Text>
             <View className="bg-card rounded-3xl border border-border overflow-hidden">
-              <TouchableOpacity className="p-4 flex-row items-center justify-between border-b border-border">
+              <TouchableOpacity 
+                onPress={() => router.push('/reset-password')}
+                className="p-4 flex-row items-center justify-between border-b border-border"
+              >
                 <View className="flex-row items-center gap-3">
                   <Shield color="#FF6B00" size={20} />
                   <Text className="text-foreground font-medium">Account Security</Text>

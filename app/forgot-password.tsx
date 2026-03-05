@@ -28,7 +28,7 @@ export default function ForgotPasswordScreen() {
     setLoading(true);
     try {
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: Platform.OS === 'web' ? window.location.origin + '/reset-password' : 'bazarbuddy://reset-password',
+        redirectTo: Platform.OS === 'web' ? window.location.origin + '/reset-password' : 'app://reset-password',
       });
       if (error) throw error;
       Alert.alert('Email Sent', 'If an account exists with this email, you will receive a password reset link.');

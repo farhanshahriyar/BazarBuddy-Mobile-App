@@ -4,6 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { ArrowLeft, Save, Sparkles, HelpCircle } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
+import { suggestPriceWithGemini } from '../lib/gemini';
 
 const UNIT_OPTIONS = ['kg', 'gram', 'liter', 'pcs', 'dozen', 'box'];
 
@@ -18,7 +19,7 @@ export default function AddItemScreen() {
   const [aiPrice, setAiPrice] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const suggestPrice = () => {
+  const suggestPrice = async () => {
     if (!itemName) {
       Alert.alert('Please enter an item name first');
       return;
@@ -27,18 +28,19 @@ export default function AddItemScreen() {
     setIsAiSuggesting(true);
     setAiPrice(null);
     
-    // Simulate AI Suggestion
-    setTimeout(() => {
-      // Simple mock logic for Bangladeshi context
-      let suggested = '100';
-      if (itemName.toLowerCase().includes('onion')) suggested = '90';
-      else if (itemName.toLowerCase().includes('rice')) suggested = '70';
-      else if (itemName.toLowerCase().includes('oil')) suggested = '180';
-      else if (itemName.toLowerCase().includes('egg')) suggested = '12';
-      
-      setAiPrice(`৳ ${suggested}`);
+    try {
+      const suggested = await suggestPriceWithGemini(itemName, unit);
+      if (suggested) {
+        setAiPrice(`৳ ${suggested}`);
+      } else {
+        Alert.alert('AI Suggestion Failed', 'Could not get a current price estimate right now.');
+      }
+    } catch (error) {
+      console.error('AI suggestion error:', error);
+      Alert.alert('Error', 'Failed to connect to AI service.');
+    } finally {
       setIsAiSuggesting(false);
-    }, 1200);
+    }
   };
 
   const useSuggestedPrice = () => {

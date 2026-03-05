@@ -1,73 +1,70 @@
-# Minimal Template
+# BazarBuddy Mobile App
 
-This is a [React Native](https://reactnative.dev/) project built with [Expo](https://expo.dev/) and [React Native Reusables](https://reactnativereusables.com).
+BazarBuddy is a React Native mobile application built with Expo to help you manage your shopping lists smoothly and efficiently.
 
-It was initialized using the following command:
+## Tech Stack
 
-```bash
-npx @react-native-reusables/cli@latest init -t app
-```
+- **Framework:** React Native & [Expo](https://expo.dev/)
+- **Routing:** Expo Router (File-based routing)
+- **Styling:** [NativeWind](https://www.nativewind.dev/) (Tailwind CSS for React Native)
+- **Backend / Database:** [Supabase](https://supabase.com/)
+- **Icons:** Lucide React Native
+- **Language:** TypeScript
+
+## Features
+
+- **User Authentication:** Secure login, signup, and password recovery via Supabase Auth.
+- **List Management:** Create, view, and manage your shopping (bazar) lists.
+- **Item Tracking:** Add items to lists and track your shopping progress.
+- **Analytics:** View insights and past shopping analytics.
+- **Modern UI:** Clean, responsive design built with Tailwind CSS.
 
 ## Getting Started
 
-To run the development server:
+### Prerequisites
+
+- Node.js (v18 or newer recommended)
+- Expo CLI (`npm install -g expo-cli`)
+- Expo Go app installed on your physical device (iOS/Android), or an emulator/simulator.
+
+### Installation
+
+1.  Clone the repository and jump into the `client` directory.
+2.  Install the dependencies:
+
+    ```bash
+    npm install
+    # or
+    yarn install
+    ```
+
+3.  Set up your environment variables. Create a `.env.local` file in the root of the `client` directory (or use the hardcoded backups in `lib/supabase.ts` for quick testing if configured):
+
+    ```env
+    EXPO_PUBLIC_SUPABASE_URL=your_supabase_url
+    EXPO_PUBLIC_SUPABASE_ANON_KEY=your_supabase_anon_key
+    ```
+
+### Running the App
+
+Start the Expo development server:
 
 ```bash
-    npm run dev
-    # or
-    yarn dev
-    # or
-    pnpm dev
-    # or
-    bun dev
+npx expo start -c
 ```
 
-This will start the Expo Dev Server. Open the app in:
+The `-c` flag clears the cache to ensure all latest environment variables and dependencies are loaded correctly.
 
-- **iOS**: press `i` to launch in the iOS simulator _(Mac only)_
-- **Android**: press `a` to launch in the Android emulator
-- **Web**: press `w` to run in a browser
+Once the server is running, you can:
 
-You can also scan the QR code using the [Expo Go](https://expo.dev/go) app on your device. This project fully supports running in Expo Go for quick testing on physical devices.
+- Scan the QR code with your phone's camera (iOS) or the Expo Go app (Android).
+- Press `a` to open in Android Emulator.
+- Press `i` to open in iOS Simulator.
+- Press `w` to open in a web browser.
 
-## Adding components
+## Project Structure
 
-You can add more reusable components using the CLI:
-
-```bash
-npx react-native-reusables/cli@latest add [...components]
-```
-
-> e.g. `npx react-native-reusables/cli@latest add input textarea`
-
-If you don't specify any component names, you'll be prompted to select which components to add interactively. Use the `--all` flag to install all available components at once.
-
-## Project Features
-
-- ⚛️ Built with [Expo Router](https://expo.dev/router)
-- 🎨 Styled with [Tailwind CSS](https://tailwindcss.com/) via [Nativewind](https://www.nativewind.dev/)
-- 📦 UI powered by [React Native Reusables](https://github.com/founded-labs/react-native-reusables)
-- 🚀 New Architecture enabled
-- 🔥 Edge to Edge enabled
-- 📱 Runs on iOS, Android, and Web
-
-## Learn More
-
-To dive deeper into the technologies used:
-
-- [React Native Docs](https://reactnative.dev/docs/getting-started)
-- [Expo Docs](https://docs.expo.dev/)
-- [Nativewind Docs](https://www.nativewind.dev/)
-- [React Native Reusables](https://reactnativereusables.com)
-
-## Deploy with EAS
-
-The easiest way to deploy your app is with [Expo Application Services (EAS)](https://expo.dev/eas).
-
-- [EAS Build](https://docs.expo.dev/build/introduction/)
-- [EAS Updates](https://docs.expo.dev/eas-update/introduction/)
-- [EAS Submit](https://docs.expo.dev/submit/introduction/)
-
----
-
-If you enjoy using React Native Reusables, please consider giving it a ⭐ on [GitHub](https://github.com/founded-labs/react-native-reusables). Your support means a lot!
+- `app/`: Contains the file-based routing components (Screens like Auth, Tabs, Modals).
+- `components/`: Reusable UI components.
+- `lib/`: Core utilities, including the `supabase.ts` client setup.
+- `assets/`: Images, fonts, and other static files.

@@ -19,6 +19,7 @@ export default function ResetPasswordScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [loading, setLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   async function handleResetPassword() {
@@ -109,15 +110,27 @@ export default function ResetPasswordScreen() {
 
             <View>
               <Text className="text-white font-medium mb-2 ml-1">Confirm Password</Text>
-              <TextInput
-                className="bg-[#0a0a0a] h-14 rounded-xl px-4 text-white border border-[#262626]"
-                placeholder="••••••••"
-                placeholderTextColor="#525252"
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                secureTextEntry={!showPassword}
-                autoCapitalize="none"
-              />
+              <View className="relative">
+                <TextInput
+                  className="bg-[#0a0a0a] h-14 rounded-xl px-4 pr-12 text-white border border-[#262626]"
+                  placeholder="••••••••"
+                  placeholderTextColor="#525252"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  secureTextEntry={!showConfirmPassword}
+                  autoCapitalize="none"
+                />
+                <TouchableOpacity
+                  className="absolute right-4 top-[14px]"
+                  onPress={() => setShowConfirmPassword(!showConfirmPassword)}
+                >
+                  {showConfirmPassword ? (
+                    <EyeOff size={22} color="#525252" />
+                  ) : (
+                    <Eye size={22} color="#525252" />
+                  )}
+                </TouchableOpacity>
+              </View>
             </View>
 
             <TouchableOpacity

@@ -1,75 +1,90 @@
 import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, TextInput, KeyboardAvoidingView, Platform, Alert, ActivityIndicator } from 'react-native';
+import {
+  View,
+  Text,
+  ScrollView,
+  TouchableOpacity,
+  TextInput,
+  KeyboardAvoidingView,
+  Platform,
+  Alert,
+  ActivityIndicator,
+} from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useRouter, useLocalSearchParams } from 'expo-router';
-import { ArrowLeft, Save, Sparkles, HelpCircle } from 'lucide-react-native';
+import { ArrowLeft, Sparkles, ShoppingCart, Pencil } from 'lucide-react-native';
 import { supabase } from '../lib/supabase';
 import { suggestPriceWithGemini } from '../lib/gemini';
 
-const UNIT_OPTIONS = ['kg', 'gram', 'liter', 'pcs', 'dozen', 'box'];
+const UNIT_GROUPS = [
+  { label: 'Weight',    units: ['kg', 'g', 'mg'] },
+  { label: 'Volume',    units: ['L', 'mL'] },
+  { label: 'Count',     units: ['pcs', 'dozen', 'pack', 'box', 'bag', 'bundle', 'roll'] },
+  { label: 'Container', units: ['bottle', 'can', 'sachet', 'jar', 'carton'] },
+];
 
 export default function AddItemScreen() {
   const router = useRouter();
-  const { listId } = useLocalSearchParams();
-  const [itemName, setItemName] = useState('');
-  const [quantity, setQuantity] = useState('');
-  const [unit, setUnit] = useState('kg');
-  const [price, setPrice] = useState('');
+  const params = useLocalSearchParams();
+  const listId = Array.isArray(params.listId) ? params.listId[0] : params.listId;
+
+  const [itemName, setItemName]         = useState('');
+  const [quantity, setQuantity]         = useState('');
+  const [unit, setUnit]                 = useState('kg');
+  const [price, setPrice]               = useState('');
+  const [priceEnabled, setPriceEnabled] = useState(false);
   const [isAiSuggesting, setIsAiSuggesting] = useState(false);
-  const [aiPrice, setAiPrice] = useState<string | null>(null);
-  const [loading, setLoading] = useState(false);
+  const [loading, setLoading]           = useState(false);
 
   const suggestPrice = async () => {
-    if (!itemName) {
-      Alert.alert('Please enter an item name first');
+    if (!itemName.trim()) {
+      Alert.alert('Item name required', 'Please enter an item name first.');
       return;
     }
-    
     setIsAiSuggesting(true);
-    setAiPrice(null);
-    
     try {
-      const suggested = await suggestPriceWithGemini(itemName, unit);
-      if (suggested) {
-        setAiPrice(`৳ ${suggested}`);
-      } else {
-        Alert.alert('AI Suggestion Failed', 'Could not get a current price estimate right now.');
-      }
-    } catch (error) {
+      const suggested = await suggestPriceWithGemini(itemName.trim(), unit);
+      setPrice(suggested);
+      setPriceEnabled(true);
+    } catch (error: any) {
       console.error('AI suggestion error:', error);
-      Alert.alert('Error', 'Failed to connect to AI service.');
+      Alert.alert(
+        'AI Suggestion Failed',
+        error?.message?.includes('unreachable')
+          ? 'The AI service is not deployed yet. Please enter price manually.'
+          : 'Could not get a price estimate right now. Please enter manually.',
+        [{ text: 'Enter Manually', onPress: () => setPriceEnabled(true) }, { text: 'Cancel' }]
+      );
     } finally {
       setIsAiSuggesting(false);
     }
   };
 
-  const useSuggestedPrice = () => {
-    if (aiPrice) {
-      setPrice(aiPrice.replace('৳ ', ''));
-      setAiPrice(null);
-    }
-  };
-
   const saveItem = async () => {
-    if (!itemName || !quantity || !price || !listId) {
-      Alert.alert('Please fill all required fields');
+    if (!itemName.trim()) {
+      Alert.alert('Required', 'Please enter an item name.');
+      return;
+    }
+    if (!quantity || isNaN(Number(quantity)) || Number(quantity) <= 0) {
+      Alert.alert('Required', 'Please enter a valid quantity.');
+      return;
+    }
+    if (!listId) {
+      Alert.alert('Error', 'List not found. Please go back and try again.');
       return;
     }
 
     setLoading(true);
     try {
-      const { error } = await supabase
-        .from('grocery_items')
-        .insert([
-          {
-            list_id: listId,
-            name: itemName,
-            quantity: Number(quantity),
-            unit: unit,
-            estimated_price: Number(price),
-            is_completed: false
-          }
-        ]);
+      const { error } = await supabase.from('grocery_items').insert([
+        {
+          list_id: listId,
+          name: itemName.trim(),
+          quantity: Number(quantity),
+          unit,
+          estimated_price: price ? Number(price) : null,
+        },
+      ]);
 
       if (error) throw error;
       router.back();
@@ -83,114 +98,161 @@ export default function AddItemScreen() {
 
   return (
     <SafeAreaView className="flex-1 bg-background">
-        <KeyboardAvoidingView 
-          behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-          className="flex-1"
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        className="flex-1"
+      >
+        {/* Header */}
+        <View className="flex-row items-center justify-between px-4 py-4 border-b border-border">
+          <TouchableOpacity onPress={() => router.back()} className="bg-secondary p-2 rounded-full">
+            <ArrowLeft color="#FF6B00" size={22} />
+          </TouchableOpacity>
+          <Text className="text-foreground text-xl font-bold">Add New Item</Text>
+          <TouchableOpacity
+            onPress={saveItem}
+            disabled={loading}
+            className={`px-4 py-2 rounded-full ${loading ? 'bg-primary/50' : 'bg-primary'}`}
+          >
+            {loading ? (
+              <ActivityIndicator color="black" size="small" />
+            ) : (
+              <Text className="text-black font-bold text-sm">Save</Text>
+            )}
+          </TouchableOpacity>
+        </View>
+
+        <ScrollView
+          className="flex-1 px-4 py-5"
+          keyboardShouldPersistTaps="handled"
+          showsVerticalScrollIndicator={false}
         >
-          <ScrollView className="px-4 py-4">
-            <View className="flex-row items-center justify-between mb-8">
-              <TouchableOpacity onPress={() => router.back()} className="bg-secondary p-2 rounded-full">
-                <ArrowLeft color="#FF6B00" size={24} />
-              </TouchableOpacity>
-              <Text className="text-foreground text-xl font-bold">Add New Item</Text>
-              <TouchableOpacity onPress={saveItem} disabled={loading} className="bg-primary p-2 rounded-full">
-                {loading ? <ActivityIndicator color="black" size="small" /> : <Save color="black" size={24} />}
+          {/* Item Name */}
+          <View className="mb-5">
+            <Text className="text-muted-foreground text-xs font-bold mb-2 tracking-widest">ITEM NAME</Text>
+            <TextInput
+              placeholder="e.g. Onion (পেঁয়াজ)"
+              placeholderTextColor="#555"
+              value={itemName}
+              onChangeText={setItemName}
+              className="bg-card border border-border px-4 py-4 rounded-2xl text-foreground text-base font-medium"
+              autoFocus
+            />
+          </View>
+
+          {/* Quantity */}
+          <View className="mb-5">
+            <Text className="text-muted-foreground text-xs font-bold mb-2 tracking-widest">QUANTITY</Text>
+            <TextInput
+              placeholder="e.g. 2"
+              placeholderTextColor="#555"
+              keyboardType="numeric"
+              value={quantity}
+              onChangeText={setQuantity}
+              className="bg-card border border-border px-4 py-4 rounded-2xl text-foreground text-base font-medium"
+            />
+          </View>
+
+          {/* Unit */}
+          <View className="mb-5">
+            <Text className="text-muted-foreground text-xs font-bold mb-3 tracking-widest">UNIT</Text>
+            <View className="gap-3">
+              {UNIT_GROUPS.map((group) => (
+                <View key={group.label}>
+                  <Text className="text-muted-foreground text-xs font-medium mb-2">{group.label}</Text>
+                  <View className="flex-row flex-wrap gap-2">
+                    {group.units.map((u) => (
+                      <TouchableOpacity
+                        key={u}
+                        onPress={() => setUnit(u)}
+                        className={`px-4 py-2 rounded-xl border ${
+                          unit === u ? 'bg-primary border-primary' : 'bg-card border-border'
+                        }`}
+                      >
+                        <Text className={`text-sm font-bold ${unit === u ? 'text-black' : 'text-foreground'}`}>
+                          {u}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                </View>
+              ))}
+            </View>
+          </View>
+
+          {/* Price */}
+          <View className="mb-5">
+            <View className="flex-row justify-between items-center mb-2">
+              <View>
+                <Text className="text-muted-foreground text-xs font-bold tracking-widest">
+                  ESTIMATED PRICE <Text className="text-muted-foreground/50 font-normal normal-case tracking-normal">(optional)</Text>
+                </Text>
+              </View>
+              <TouchableOpacity
+                onPress={suggestPrice}
+                disabled={isAiSuggesting}
+                className="flex-row items-center gap-1 bg-primary/20 px-3 py-1.5 rounded-full"
+              >
+                {isAiSuggesting ? (
+                  <ActivityIndicator color="#FF6B00" size="small" />
+                ) : (
+                  <Sparkles color="#FF6B00" size={13} />
+                )}
+                <Text className="text-primary text-xs font-bold">
+                  {isAiSuggesting ? 'Thinking...' : 'AI Suggest'}
+                </Text>
               </TouchableOpacity>
             </View>
 
-            <View className="mb-6">
-              <Text className="text-muted-foreground text-sm font-bold mb-2">ITEM NAME</Text>
+            <View className={`flex-row items-center border rounded-2xl px-4 ${priceEnabled ? 'bg-card border-border' : 'bg-secondary/50 border-border/50'}`}>
+              <Text className={`font-bold text-base mr-1 ${priceEnabled ? 'text-muted-foreground' : 'text-muted-foreground/40'}`}>৳</Text>
               <TextInput
-                placeholder="e.g. Onion (পেঁয়াজ)"
-                placeholderTextColor="#888"
-                value={itemName}
-                onChangeText={setItemName}
-                className="bg-card border border-border p-4 rounded-2xl text-foreground text-lg font-bold"
+                placeholder={priceEnabled ? '0.00' : 'Use AI Suggest or enter manually'}
+                placeholderTextColor={priceEnabled ? '#555' : '#333'}
+                keyboardType="numeric"
+                value={price}
+                onChangeText={setPrice}
+                editable={priceEnabled}
+                className="flex-1 py-4 text-foreground text-base font-medium"
               />
             </View>
 
-            <View className="flex-row gap-4 mb-6">
-              <View className="flex-1">
-                <Text className="text-muted-foreground text-sm font-bold mb-2">QUANTITY</Text>
-                <TextInput
-                  placeholder="2"
-                  placeholderTextColor="#888"
-                  keyboardType="numeric"
-                  value={quantity}
-                  onChangeText={setQuantity}
-                  className="bg-card border border-border p-4 rounded-2xl text-foreground text-lg font-bold"
-                />
-              </View>
-              <View className="flex-1">
-                <Text className="text-muted-foreground text-sm font-bold mb-2">UNIT</Text>
-                <View className="flex-row flex-wrap gap-2">
-                  {UNIT_OPTIONS.slice(0, 3).map(u => (
-                    <TouchableOpacity 
-                      key={u} 
-                      onPress={() => setUnit(u)}
-                      className={`px-3 py-2 rounded-xl border ${unit === u ? 'bg-primary border-primary' : 'bg-secondary border-border'}`}
-                    >
-                      <Text className={`font-bold text-xs ${unit === u ? 'text-black' : 'text-foreground'}`}>{u}</Text>
-                    </TouchableOpacity>
-                  ))}
-                </View>
-              </View>
-            </View>
+            {!priceEnabled ? (
+              <TouchableOpacity
+                onPress={() => setPriceEnabled(true)}
+                className="flex-row items-center gap-1 mt-2"
+              >
+                <Pencil color="#888" size={12} />
+                <Text className="text-muted-foreground text-xs">Enter price manually</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={() => { setPriceEnabled(false); setPrice(''); }}
+                className="flex-row items-center gap-1 mt-2"
+              >
+                <Text className="text-muted-foreground text-xs">✕ Cancel manual entry</Text>
+              </TouchableOpacity>
+            )}
+          </View>
 
-            <View className="mb-6">
-              <View className="flex-row justify-between items-center mb-2">
-                <Text className="text-muted-foreground text-sm font-bold">ESTIMATED PRICE (PER UNIT)</Text>
-                <TouchableOpacity 
-                  onPress={suggestPrice}
-                  disabled={isAiSuggesting}
-                  className="flex-row items-center gap-1 bg-primary/20 px-3 py-1.5 rounded-full"
-                >
-                  <Sparkles color="#FF6B00" size={14} />
-                  <Text className="text-primary text-xs font-bold">{isAiSuggesting ? 'Thinking...' : 'AI Suggest'}</Text>
-                </TouchableOpacity>
-              </View>
-              
-              <View className="relative">
-                <Text className="absolute left-4 top-4 text-foreground text-lg font-bold">৳</Text>
-                <TextInput
-                  placeholder="0.00"
-                  placeholderTextColor="#888"
-                  keyboardType="numeric"
-                  value={price}
-                  onChangeText={setPrice}
-                  className="bg-card border border-border p-4 pl-10 rounded-2xl text-foreground text-lg font-bold"
-                />
-              </View>
-
-              {aiPrice && (
-                <TouchableOpacity 
-                  onPress={useSuggestedPrice}
-                  className="mt-3 bg-primary p-4 rounded-2xl flex-row items-center justify-between border border-primary"
-                >
-                  <View className="flex-row items-center gap-3">
-                    <Sparkles color="black" size={20} />
-                    <View>
-                      <Text className="text-black font-bold">AI Suggests {aiPrice}</Text>
-                      <Text className="text-black/60 text-xs">Based on current market in Bangladesh</Text>
-                    </View>
-                  </View>
-                  <Text className="text-black font-bold underline">USE THIS</Text>
-                </TouchableOpacity>
-              )}
-            </View>
-
-            {/* Tips Section */}
-            <View className="bg-secondary p-4 rounded-2xl border border-border mt-6">
-              <View className="flex-row items-center gap-2 mb-2">
-                <HelpCircle color="#888" size={16} />
-                <Text className="text-muted-foreground text-sm font-bold">Pro Tip</Text>
-              </View>
-              <Text className="text-muted-foreground text-xs">
-                Prices for onions and essential oils fluctuate daily in Bangladeshi markets. Use AI suggestions to plan your budget effectively.
-              </Text>
-            </View>
-          </ScrollView>
-        </KeyboardAvoidingView>
+          {/* Save Button */}
+          <TouchableOpacity
+            onPress={saveItem}
+            disabled={loading}
+            className={`mt-2 mb-10 py-4 rounded-2xl flex-row items-center justify-center gap-2 ${
+              loading ? 'bg-primary/50' : 'bg-primary'
+            }`}
+          >
+            {loading ? (
+              <ActivityIndicator color="black" />
+            ) : (
+              <>
+                <ShoppingCart color="black" size={20} />
+                <Text className="text-black font-bold text-base">Add to List</Text>
+              </>
+            )}
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }

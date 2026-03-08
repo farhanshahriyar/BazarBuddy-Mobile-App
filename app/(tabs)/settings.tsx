@@ -1,21 +1,26 @@
 import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Switch, Alert, TextInput } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { User, Bell, Globe, Shield, Moon, LogOut, ChevronRight, MessageSquare, History, X } from 'lucide-react-native';
+import { User, Bell, Globe, Shield, LogOut, ChevronRight, ChevronDown, MessageSquare, History, X, Check } from 'lucide-react-native';
 import { ScreenWrapper } from '../../components/ScreenWrapper';
 import { supabase } from '../../lib/supabase';
 import { useRouter } from 'expo-router';
-import { useColorScheme } from 'nativewind';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 export default function SettingsScreen() {
   const [isNotificationsEnabled, setIsNotificationsEnabled] = useState(true);
-  const { colorScheme, setColorScheme } = useColorScheme();
-  const [isDarkMode, setIsDarkMode] = useState(colorScheme === 'dark');
   const [language, setLanguage] = useState<'en' | 'bn'>('en');
   const [showFeedbackModal, setShowFeedbackModal] = useState(false);
   const [feedbackText, setFeedbackText] = useState('');
   const [submitting, setSubmitting] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'general' | 'bug_report' | 'feature_request'>('general');
+  const [showTypeDropdown, setShowTypeDropdown] = useState(false);
+
+  const FEEDBACK_TYPES = [
+    { key: 'general' as const, label: 'General Feedback' },
+    { key: 'bug_report' as const, label: 'Bug Report' },
+    { key: 'feature_request' as const, label: 'Feature Request' },
+  ];
   const [userEmail, setUserEmail] = useState<string | null>(null);
   const [fullName, setFullName] = useState<string | null>(null);
   const router = useRouter();
@@ -78,28 +83,31 @@ export default function SettingsScreen() {
     AsyncStorage.setItem('setting_notifications', String(value));
   };
 
-  const toggleDarkMode = (value: boolean) => {
-    setIsDarkMode(value);
-    setColorScheme(value ? 'dark' : 'light');
-  };
-
   const handleFeedback = () => {
     setShowFeedbackModal(true);
   };
 
   const submitFeedback = async () => {
     if (!feedbackText.trim() || submitting) return;
-    
+
     setSubmitting(true);
     try {
+      const { data: { user } } = await supabase.auth.getUser();
+
       const { error } = await supabase
         .from('feedback')
-        .insert([{ content: feedbackText.trim(), type: 'feature_request' }]);
+        .insert([{
+          description: feedbackText.trim(),
+          type: feedbackType,
+          user_id: user?.id ?? null,
+          email: user?.email ?? null,
+        }]);
 
       if (error) throw error;
-      
+
       Alert.alert("Success", "Thank you for your feedback!");
       setFeedbackText('');
+      setFeedbackType('general');
       setShowFeedbackModal(false);
     } catch (error) {
       console.error('Error submitting feedback:', error);
@@ -132,10 +140,42 @@ export default function SettingsScreen() {
             <View className="bg-card p-6 rounded-3xl border border-primary mb-8">
               <View className="flex-row justify-between items-center mb-4">
                 <Text className="text-foreground font-bold text-lg">Send Feedback</Text>
-                <TouchableOpacity onPress={() => setShowFeedbackModal(false)}>
+                <TouchableOpacity onPress={() => { setShowFeedbackModal(false); setShowTypeDropdown(false); }}>
                   <X color="#888" size={20} />
                 </TouchableOpacity>
               </View>
+              <View className="mb-4">
+                <Text className="text-muted-foreground text-xs font-bold mb-2">FEEDBACK TYPE</Text>
+                <TouchableOpacity
+                  onPress={() => setShowTypeDropdown(!showTypeDropdown)}
+                  className="bg-secondary border border-border rounded-2xl px-4 py-3 flex-row items-center justify-between"
+                >
+                  <Text className="text-foreground font-medium">
+                    {FEEDBACK_TYPES.find(t => t.key === feedbackType)?.label}
+                  </Text>
+                  <ChevronDown
+                    color="#FF6B00"
+                    size={18}
+                    style={{ transform: [{ rotate: showTypeDropdown ? '180deg' : '0deg' }] }}
+                  />
+                </TouchableOpacity>
+
+                {showTypeDropdown && (
+                  <View className="bg-card border border-border rounded-2xl mt-1 overflow-hidden">
+                    {FEEDBACK_TYPES.map(({ key, label }, index) => (
+                      <TouchableOpacity
+                        key={key}
+                        onPress={() => { setFeedbackType(key); setShowTypeDropdown(false); }}
+                        className={`px-4 py-3 flex-row items-center justify-between ${index !== FEEDBACK_TYPES.length - 1 ? 'border-b border-border' : ''}`}
+                      >
+                        <Text className={`font-medium ${feedbackType === key ? 'text-primary' : 'text-foreground'}`}>{label}</Text>
+                        {feedbackType === key && <Check color="#FF6B00" size={16} />}
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                )}
+              </View>
+
               <TextInput
                 placeholder="Suggest a feature or report a bug..."
                 placeholderTextColor="#888"
@@ -170,27 +210,14 @@ export default function SettingsScreen() {
                 </TouchableOpacity>
               </View>
 
-              <View className="p-4 flex-row items-center justify-between border-b border-border">
+              <View className="p-4 flex-row items-center justify-between">
                 <View className="flex-row items-center gap-3">
                   <Bell color="#FF6B00" size={20} />
                   <Text className="text-foreground font-medium">Notifications</Text>
                 </View>
-                <Switch 
-                  value={isNotificationsEnabled} 
+                <Switch
+                  value={isNotificationsEnabled}
                   onValueChange={toggleNotifications}
-                  trackColor={{ false: '#222', true: '#FF6B00' }}
-                  thumbColor="#fff"
-                />
-              </View>
-
-              <View className="p-4 flex-row items-center justify-between">
-                <View className="flex-row items-center gap-3">
-                  <Moon color="#FF6B00" size={20} />
-                  <Text className="text-foreground font-medium">Dark Mode</Text>
-                </View>
-                <Switch 
-                  value={isDarkMode} 
-                  onValueChange={toggleDarkMode}
                   trackColor={{ false: '#222', true: '#FF6B00' }}
                   thumbColor="#fff"
                 />

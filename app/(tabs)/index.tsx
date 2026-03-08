@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, ActivityIndicator, RefreshControl } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { TrendingUp, ShoppingBag, Calendar, ArrowRight } from 'lucide-react-native';
@@ -9,12 +9,13 @@ import { getDynamicProTipWithGemini } from '../../lib/gemini';
 
 export default function DashboardScreen() {
   const router = useRouter();
-    const [recentLists, setRecentLists] = useState<any[]>([]);
-    const [loading, setLoading] = useState(true);
-    const [refreshing, setRefreshing] = useState(false);
-    const [stats, setStats] = useState({ total: 0, count: 0 });
-    const [userName, setUserName] = useState('BazarBuddy');
-    const [proTip, setProTip] = useState('Prices for essentials fluctuate daily in local markets. Use AI suggestions to plan your budget effectively!');
+  const [recentLists, setRecentLists] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [stats, setStats] = useState({ total: 0, count: 0 });
+  const [userName, setUserName] = useState('BazarBuddy');
+  const [proTip, setProTip] = useState('Prices for essentials fluctuate daily in local markets. Use AI suggestions to plan your budget effectively!');
+  const proTipFetched = useRef(false);
   
       const fetchData = async () => {
         try {
@@ -58,9 +59,10 @@ export default function DashboardScreen() {
   useFocusEffect(
     useCallback(() => {
       fetchData();
-      
-      // Fetch dynamic pro tip once when screen focused (if not already custom)
-      if (proTip.includes('fluctuate daily')) {
+
+      // Fetch dynamic pro tip only once per app session
+      if (!proTipFetched.current) {
+        proTipFetched.current = true;
         getDynamicProTipWithGemini().then(tip => {
           if (tip) setProTip(tip);
         });

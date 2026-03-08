@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { supabase } from '@/lib/supabase';
 import { Session } from '@supabase/supabase-js';
 import { View, ActivityIndicator } from 'react-native';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 
 export default function RootLayout() {
   const { colorScheme } = useColorScheme();
@@ -58,12 +59,13 @@ export default function RootLayout() {
   if (!initialized) {
     return (
       <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#020617' }}>
-        <ActivityIndicator size="large" color="#22c55e" />
+        <ActivityIndicator size="large" color="#FF6B00" />
       </View>
     );
   }
 
   return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
     <ErrorBoundary>
       <ThemeProvider value={NAV_THEME[colorScheme ?? 'light']}>
         <StatusBar style="light" />
@@ -102,5 +104,6 @@ export default function RootLayout() {
           </Stack>
       </ThemeProvider>
     </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 }
